@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Player</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #player-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+    video {
+      width: 100%;
+      max-height: 100%;
+      outline: none;
+    }
+    .info {
+      padding: 12px 16px;
+      background: #111;
+      font-size: 14px;
+      text-align: center;
+    }
+    .error {
+      color: #ff5252;
+      padding: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="player-container">
+    <video id="video" controls playsinline webkit-playsinline></video>
+  </div>
+  <div class="info" id="status">Loading...</div>
+
+<script>
+  const video = document.getElementById('video');
+  const status = document.getElementById('status');
+
+  // get the stream url from query parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const streamUrl = urlParams.get('url');
+
+  if (!streamUrl) {
+    status.innerHTML = '<div class="error">No stream URL provided</div>';
+  } else {
+    status.textContent = 'Starting player...';
+
+    if (streamUrl.includes('.m3u8')) {
+      // HLS stream
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(streamUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          status.textContent = 'Playing (HLS)';
+          video.play().catch(() => {});
+        });
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          status.innerHTML = '<div class="error">Stream error / expired</div>';
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // native HLS (Safari / some Android)
+        video.src = streamUrl;
+        video.addEventListener('loadedmetadata', () => {
+          status.textContent = 'Playing (native HLS)';
+          video.play().catch(() => {});
+        });
+      } else {
+        status.innerHTML = '<div class="error">HLS not supported on this device</div>';
+      }
+    } else {
+      // normal mp4
+      video.src = streamUrl;
+      video.addEventListener('loadedmetadata', () => {
+        status.textContent = 'Playing (MP4)';
+        video.play().catch(() => {});
+      });
+      video.addEventListener('error', () => {
+        status.innerHTML = '<div class="error">Stream error / expired</div>';
+      });
+    }
+  }
+</script>
+</body>
+</html>
