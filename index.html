@@ -16,17 +16,35 @@ let tg = window.Telegram.WebApp; tg.expand();
 const token = new URLSearchParams(window.location.search).get('token');
 const loader = document.getElementById('loader');
 const video = document.getElementById('player');
-if(!token) { loader.innerText = "Error: Missing token."; } else {
-  fetch(`/api/resolve?token=${token}`).then(r => r.json()).then(data => {
-    if(data.stream_url) {
-      if(Hls.isSupported()) {
-        const hls = new Hls(); hls.loadSource(data.stream_url); hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => { loader.style.display='none'; video.play(); });
-      } else if(video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = data.stream_url; loader.style.display='none'; video.play();
+
+// Point explicitly to your Botkeep backend server
+const BACKEND_URL = "https://node13.botkeep.cloud:34325";
+
+if(!token) { 
+  loader.innerText = "Error: Missing token."; 
+} else {
+  fetch(`${BACKEND_URL}/api/resolve?token=${token}`)
+    .then(r => r.json())
+    .then(data => {
+      if(data.stream_url) {
+        if(Hls.isSupported()) {
+          const hls = new Hls(); 
+          hls.loadSource(data.stream_url); 
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => { loader.style.display='none'; video.play(); });
+        } else if(video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = data.stream_url; 
+          loader.style.display='none'; 
+          video.play();
+        }
+      } else { 
+        loader.innerText = "Stream unavailable."; 
       }
-    } else { loader.innerText = "Stream unavailable."; }
-  }).catch(() => { loader.innerText = "Connection error."; });
+    })
+    .catch((err) => { 
+      console.error(err);
+      loader.innerText = "Connection error."; 
+    });
 }
 </script>
 </body>
