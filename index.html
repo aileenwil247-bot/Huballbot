@@ -3,48 +3,102 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Secure Player</title>
+<title>Network Stream Browser</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<style>body,html{margin:0;padding:0;width:100%;height:100%;background:#000;display:flex;justify-content:center;align-items:center;}video{width:100%;height:100%;object-fit:contain;}.loader{color:#fff;font-family:sans-serif;position:absolute;}</style>
+<style>
+  body, html { margin:0; padding:0; width:100%; height:100%; background:#000; color:#fff; font-family:sans-serif; }
+  #browser-container { padding: 15px; overflow-y: auto; height: 100vh; box-sizing: border-box; }
+  .scene-card { background: #111; margin-bottom: 15px; padding: 10px; border-radius: 8px; cursor: pointer; border: 1px solid #333; }
+  .scene-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; }
+  #player-container { display: none; width: 100%; height: 100%; justify-content: center; align-items: center; position: fixed; top:0; left:0; background:#000; }
+  video { width: 100%; height: 100%; object-fit: contain; }
+  .loader { position: absolute; color: #fff; }
+</style>
 </head>
 <body>
-<div id="loader" class="loader">Resolving secure stream...</div>
-<video id="player" controls autoplay playsinline></video>
+
+<!-- Catalog Browser View -->
+<div id="browser-container">
+    <h2 id="network-title">Loading Catalog...</h2>
+    <div id="scenes-list"></div>
+</div>
+
+<!-- Video Player View -->
+<div id="player-container">
+    <div id="loader" class="loader">Resolving secure stream...</div>
+    <video id="player" controls autoplay playsinline></video>
+</div>
+
 <script>
 let tg = window.Telegram.WebApp; tg.expand();
-const token = new URLSearchParams(window.location.search).get('token');
-const loader = document.getElementById('loader');
-const video = document.getElementById('player');
+const urlParams = new URLSearchParams(window.location.search);
+const network = urlParams.get('network');
+const token = urlParams.get('token');
 
-// Point explicitly to your Botkeep backend server
 const BACKEND_URL = "https://node13.botkeep.cloud:34325";
 
-if(!token) { 
-  loader.innerText = "Error: Missing token."; 
+if (token) {
+    // If a direct token was passed, play the video straight away
+    playVideo(token);
+} else if (network) {
+    // Load public catalog for the selected network (e.g., Brazzers, Mofos)
+    document.getElementById('network-title.innerText = `${network.toUpperCase()} Scenes`;
+    loadCatalog(network);
 } else {
-  fetch(`${BACKEND_URL}/api/resolve?token=${token}`)
-    .then(r => r.json())
-    .then(data => {
-      if(data.stream_url) {
-        if(Hls.isSupported()) {
-          const hls = new Hls(); 
-          hls.loadSource(data.stream_url); 
-          hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => { loader.style.display='none'; video.play(); });
-        } else if(video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = data.stream_url; 
-          loader.style.display='none'; 
-          video.play();
-        }
-      } else { 
-        loader.innerText = "Stream unavailable."; 
-      }
-    })
-    .catch((err) => { 
-      console.error(err);
-      loader.innerText = "Connection error."; 
-    });
+    document.getElementById('browser-container.innerHTML = "<h3>Error: No network selected.</h3>";';
+}
+
+function loadCatalog(net) {
+    // Example: Fetch list of public scenes for this network from your backend
+    fetch(`${BACKEND_URL}/api/catalog?network=${net}`)
+        .then(res => res.json())
+        .then(data => {
+            const listDiv = document.getElementById('scenes-list');
+            listDiv.innerHTML = "";
+            data.scenes.forEach(scene => {
+                const card = document.createElement('div');
+                card.className = "scene-card";
+                card.innerHTML = `<div class="scene-title">${scene.title}</div><small>Tap to watch</small>`;
+                card.onclick = () => resolveAndPlay(scene.url);
+                listDiv.appendChild(card);
+            });
+        })
+        .catch(() => {
+            document.getElementById('scenes-list').innerHTML = "<p>Failed to load catalog. Try again later.</p>";
+        });
+}
+
+function resolveAndPlay(videoUrl) {
+    document.getElementById('browser-container').style.display = 'none';
+    document.getElementById('player-container').style.display = 'flex';
+    
+    // Request backend to generate token and extract stream
+    fetch(`${BACKEND_URL}/api/resolve-direct?url=${encodeURIComponent(videoUrl)}`)
+        .then(r => r.json())
+        .then(data => {
+            if(data.stream_url) {
+                initPlayer(data.stream_url);
+            } else {
+                document.getElementById('loader').innerText = "Stream unavailable.";
+            }
+        })
+        .catch(() => { document.getElementById('loader').innerText = "Connection error."; });
+}
+
+function initPlayer(streamUrl) {
+    const video = document.getElementById('player');
+    const loader = document.getElementById('loader');
+    if(Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(streamUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => { loader.style.display='none'; video.play(); });
+    } else if(video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = streamUrl;
+        loader.style.display='none';
+        video.play();
+    }
 }
 </script>
 </body>
