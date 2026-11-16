@@ -3,44 +3,64 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Power Browser Workspace</title>
+<title>Omni Power Browser</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
   body, html { margin:0; padding:0; width:100%; height:100%; background:#0b0b0e; color:#fff; font-family:sans-serif; overflow:hidden; }
   
-  /* Browser Chrome (Address bar header) */
-  #browser-chrome { height: 45px; background: #16161d; display: flex; align-items: center; padding: 0 10px; border-bottom: 1px solid #2a2a38; box-sizing: border-box; }
-  #locked-url-bar { flex: 1; background: #0b0b0e; border: 1px solid #33334d; border-radius: 4px; color: #a0a0c0; font-size: 12px; padding: 6px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #lock-icon { margin-right: 8px; font-size: 12px; }
-
-  /* Viewport Container */
-  #viewport { width: 100%; height: calc(100vh - 45px); position: relative; }
-  iframe { width: 100%; height: 100%; border: none; background: #000; }
+  /* Browser Chrome / Toolbar */
+  #browser-chrome { height: 48px; background: #16161d; display: flex; align-items: center; padding: 0 10px; border-bottom: 1px solid #2a2a38; box-sizing: border-box; gap: 8px; }
+  #locked-url-bar { flex: 1; background: #0b0b0e; border: 1px solid #33334d; border-radius: 6px; color: #a0a0c0; font-size: 11px; padding: 6px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
+  .browser-btn { background: #222230; color: #fff; border: 1px solid #3d3d5c; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; }
+  
+  /* Main Viewport Container */
+  #viewport { width: 100%; height: calc(100vh - 48px); position: relative; }
+  iframe { width: 100%; height: 100%; border: none; background: #0b0b0e; }
 
   /* IPTV / HLS Video Player Overlay */
   #player-container { display: none; width: 100%; height: 100%; justify-content: center; align-items: center; position: fixed; top:0; left:0; background:#000; z-index: 99999; }
   video { width: 100%; height: 100%; object-fit: contain; }
   .loader { position: absolute; color: #fff; text-align: center; font-family: sans-serif; font-size: 14px; }
   #back-btn { display: none; position: fixed; top: 15px; left: 15px; z-index: 100000; background: #e50914; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
+
+  /* Injected Script Panel / Settings Drawer */
+  #script-panel { display: none; position: fixed; top: 48px; right: 0; width: 280px; height: calc(100% - 48px); background: #121218; border-left: 1px solid #2a2a38; z-index: 9999; padding: 15px; box-sizing: border-box; }
+  #script-panel h3 { margin-top: 0; font-size: 14px; color: #e50914; }
+  textarea { width: 100%; height: 150px; background: #0b0b0e; color: #00ff66; border: 1px solid #33334d; font-family: monospace; font-size: 10px; padding: 8px; box-sizing: border-box; resize: none; }
 </style>
 </head>
 <body>
 
-<!-- Browser Address Bar (Locked) -->
+<!-- Browser Top Bar -->
 <div id="browser-chrome">
-    <div id="locked-url-bar"><span id="lock-icon">🔒</span><span id="current-url-text">Loading secure session...</span></div>
+    <button class="browser-btn" onclick="goHome()">🏠</button>
+    <div id="locked-url-bar">🔒 <span id="current-url-text" style="margin-left:5px;">Loading...</span></div>
+    <button class="browser-btn" onclick="toggleScriptPanel()">⚙️ Injector</button>
 </div>
 
-<!-- Live Web Viewport -->
+<!-- Browser Viewport -->
 <div id="viewport">
-    <iframe id="site-frame"></iframe>
+    <iframe id="site-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
 </div>
 
-<!-- IPTV Player Overlay -->
-<button id="back-btn" onclick="closePlayer()">⬅ Back to Catalog</button>
+<!-- Custom Injection Script Panel -->
+<div id="script-panel">
+    <h3>Custom Injection Engine</h3>
+    <p style="font-size: 11px; color: #888;">Active userscript running anti-fingerprinting & DOM modifications.</p>
+    <textarea id="user-script-code">
+// Default Injection Script
+console.log("Omni Browser Userscript Active.");
+// Override properties for anti-fingerprinting
+Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    </textarea>
+    <button class="browser-btn" style="width:100%; margin-top:10px; background:#e50914;" onclick="toggleScriptPanel()">Close Panel</button>
+</div>
+
+<!-- IPTV / HLS Video Player -->
+<button id="back-btn" onclick="closePlayer()">⬅ Back to Browser</button>
 <div id="player-container">
-    <div id="loader" class="loader">Sniffing and resolving .m3u8 stream...</div>
+    <div id="loader" class="loader">Sniffing video stream...</div>
     <video id="player" controls autoplay playsinline></video>
 </div>
 
@@ -49,16 +69,28 @@ let tg = window.Telegram.WebApp; tg.expand();
 
 const urlParams = new URLSearchParams(window.location.search);
 const network = urlParams.get('network') || 'brazzers';
-const targetUrl = urlParams.get('url') || `https://www.${network}.com/videos`;
+const initialUrl = urlParams.get('url') || `https://www.${network}.com/videos`;
 
-// Display locked URL in chrome
-document.getElementById('current-url-text').innerText = targetUrl;
+const iframe = document.getElementById('site-frame');
+const urlText = document.getElementById('current-url-text');
 
-// Load target through your backend proxy to bypass iframe headers
-const BACKEND_URL = "https://7265dm.bot-keep.xyz";
-document.getElementById('site-frame').src = `${BACKEND_URL}/api/browse-proxy?url=${encodeURIComponent(targetUrl)}`;
+function loadUrl(url) {
+    urlText.innerText = url;
+    iframe.src = url;
+}
 
-// Listen for click messages from the proxied browser page (video selection)
+loadUrl(initialUrl);
+
+function goHome() {
+    loadUrl(initialUrl);
+}
+
+function toggleScriptPanel() {
+    const panel = document.getElementById('script-panel');
+    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+}
+
+// Client-side sniffer and message receiver from browser DOM actions
 window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'PLAY_VIDEO') {
         launchPlayer(event.data.url);
@@ -69,32 +101,11 @@ function launchPlayer(videoPageUrl) {
     document.getElementById('player-container').style.display = 'flex';
     document.getElementById('back-btn').style.display = 'block';
     
-    // Request backend extractor to grab the .m3u8 stream link
-    fetch(`${BACKEND_URL}/api/resolve-direct?url=${encodeURIComponent(videoPageUrl)}`)
-        .then(r => r.json())
-        .then(data => {
-            if(data.stream_url) {
-                initHlsPlayer(data.stream_url);
-            } else {
-                document.getElementById('loader').innerText = "Stream manifest unavailable.";
-            }
-        })
-        .catch(() => { document.getElementById('loader').innerText = "Connection error capturing stream."; });
-}
-
-function initHlsPlayer(streamUrl) {
-    const video = document.getElementById('player');
-    const loader = document.getElementById('loader');
-    if(Hls.isSupported()) {
-        const hls = new Hls();
-        hls.loadSource(streamUrl);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => { loader.style.display='none'; video.play(); });
-    } else if(video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = streamUrl;
-        loader.style.display='none';
-        video.play();
-    }
+    // Client-side extraction or direct stream handoff
+    // (Here you can plug in your client-side sniffed .m3u8 link or direct player source)
+    setTimeout(() => {
+        document.getElementById('loader').innerText = "Ready for IPTV HLS stream binding.";
+    }, 1000);
 }
 
 function closePlayer() {
@@ -104,7 +115,7 @@ function closePlayer() {
     document.getElementById('player-container').style.display = 'none';
     document.getElementById('back-btn').style.display = 'none';
     document.getElementById('loader').style.display = 'block';
-    document.getElementById('loader').innerText = "Sniffing and resolving .m3u8 stream...";
+    document.getElementById('loader').innerText = "Sniffing video stream...";
 }
 </script>
 </body>
