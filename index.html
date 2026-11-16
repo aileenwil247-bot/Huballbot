@@ -9,11 +9,12 @@
 <style>
   body, html { margin:0; padding:0; width:100%; height:100%; background:#000; color:#fff; font-family:sans-serif; }
   #browser-container { padding: 15px; overflow-y: auto; height: 100vh; box-sizing: border-box; }
-  .scene-card { background: #111; margin-bottom: 15px; padding: 10px; border-radius: 8px; cursor: pointer; border: 1px solid #333; }
+  .scene-card { background: #111; margin-bottom: 15px; padding: 12px; border-radius: 8px; cursor: pointer; border: 1px solid #333; }
   .scene-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; }
+  .scene-card small { color: #aaa; }
   #player-container { display: none; width: 100%; height: 100%; justify-content: center; align-items: center; position: fixed; top:0; left:0; background:#000; }
   video { width: 100%; height: 100%; object-fit: contain; }
-  .loader { position: absolute; color: #fff; }
+  .loader { position: absolute; color: #fff; text-align: center; font-family: sans-serif; }
 </style>
 </head>
 <body>
@@ -36,36 +37,40 @@ const urlParams = new URLSearchParams(window.location.search);
 const network = urlParams.get('network');
 const token = urlParams.get('token');
 
+// Your Botkeep backend URL
 const BACKEND_URL = "https://node13.botkeep.cloud:34325";
 
 if (token) {
-    // If a direct token was passed, play the video straight away
     playVideo(token);
 } else if (network) {
-    // Load public catalog for the selected network (e.g., Brazzers, Mofos)
-    document.getElementById('network-title.innerText = `${network.toUpperCase()} Scenes`;
+    // Fixed typo here: properly closing getElementById
+    document.getElementById('network-title').innerText = `${network.toUpperCase()} Scenes`;
     loadCatalog(network);
 } else {
-    document.getElementById('browser-container.innerHTML = "<h3>Error: No network selected.</h3>";';
+    document.getElementById('browser-container').innerHTML = "<h3>Error: No network selected.</h3>";
 }
 
 function loadCatalog(net) {
-    // Example: Fetch list of public scenes for this network from your backend
     fetch(`${BACKEND_URL}/api/catalog?network=${net}`)
         .then(res => res.json())
         .then(data => {
             const listDiv = document.getElementById('scenes-list');
             listDiv.innerHTML = "";
+            if (!data.scenes || data.scenes.length === 0) {
+                listDiv.innerHTML = "<p>No scenes found for this network.</p>";
+                return;
+            }
             data.scenes.forEach(scene => {
                 const card = document.createElement('div');
                 card.className = "scene-card";
-                card.innerHTML = `<div class="scene-title">${scene.title}</div><small>Tap to watch</small>`;
+                card.innerHTML = `<div class="scene-title">${scene.title}</div><small>Tap to watch stream</small>`;
                 card.onclick = () => resolveAndPlay(scene.url);
                 listDiv.appendChild(card);
             });
         })
-        .catch(() => {
-            document.getElementById('scenes-list').innerHTML = "<p>Failed to load catalog. Try again later.</p>";
+        .catch((err) => {
+            console.error(err);
+            document.getElementById('scenes-list').innerHTML = "<p style='color:red;'>Failed to connect to backend server.</p>";
         });
 }
 
@@ -73,7 +78,6 @@ function resolveAndPlay(videoUrl) {
     document.getElementById('browser-container').style.display = 'none';
     document.getElementById('player-container').style.display = 'flex';
     
-    // Request backend to generate token and extract stream
     fetch(`${BACKEND_URL}/api/resolve-direct?url=${encodeURIComponent(videoUrl)}`)
         .then(r => r.json())
         .then(data => {
@@ -83,7 +87,7 @@ function resolveAndPlay(videoUrl) {
                 document.getElementById('loader').innerText = "Stream unavailable.";
             }
         })
-        .catch(() => { document.getElementById('loader').innerText = "Connection error."; });
+        .catch(() => { document.getElementById('loader').innerText = "Connection error extracting stream."; });
 }
 
 function initPlayer(streamUrl) {
