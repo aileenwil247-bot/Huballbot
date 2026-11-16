@@ -3,37 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Network Browser & Player</title>
+<title>Network Catalog Browser</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
   body, html { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; font-family:sans-serif; }
-  
-  /* Full-screen container for the real website view */
-  #browser-frame-container { width: 100%; height: 100%; position: relative; }
+  #frame-container { width: 100%; height: 100%; position: relative; }
   iframe { width: 100%; height: 100%; border: none; background: #000; }
 
-  /* Overlay Video Player when a scene is tapped */
   #player-container { display: none; width: 100%; height: 100%; justify-content: center; align-items: center; position: fixed; top:0; left:0; background:#000; z-index: 9999; }
   video { width: 100%; height: 100%; object-fit: contain; }
   .loader { position: absolute; color: #fff; text-align: center; font-family: sans-serif; font-size: 14px; }
-  
-  /* Floating back button to return to catalog */
-  #back-btn { display: none; position: fixed; top: 15px; left: 15px; z-index: 10000; background: rgba(0,0,0,0.7); color: #fff; border: 1px solid #555; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+  #back-btn { display: none; position: fixed; top: 15px; left: 15px; z-index: 10000; background: #e50914; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
 </style>
 </head>
 <body>
 
 <button id="back-btn" onclick="closePlayer()">⬅ Back to Browse</button>
 
-<!-- Live Website Browser View -->
-<div id="browser-frame-container">
-    <iframe id="site-frame" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+<div id="frame-container">
+    <iframe id="site-frame"></iframe>
 </div>
 
-<!-- Video Player View -->
 <div id="player-container">
-    <div id="loader" class="loader">Resolving secure stream...</div>
+    <div id="loader" class="loader">Extracting secure stream...</div>
     <video id="player" controls autoplay playsinline></video>
 </div>
 
@@ -44,7 +37,6 @@ const network = urlParams.get('network') || 'brazzers';
 
 const BACKEND_URL = "https://7265dm.bot-keep.xyz";
 
-// Map networks to their actual public video homepages
 const networkUrls = {
     "brazzers": "https://www.brazzers.com/videos",
     "mofos": "https://www.mofos.com/videos",
@@ -52,13 +44,18 @@ const networkUrls = {
     "babes": "https://www.babes.com/videos"
 };
 
-const targetSiteUrl = networkUrls[network] || networkUrls["brazzers"];
-const iframe = document.getElementById('site-frame');
+const targetUrl = networkUrls[network] || networkUrls["brazzers"];
 
-// Load the real site directly into the Mini App frame
-iframe.src = targetSiteUrl;
+// Load the homepage through your proxy server so it bypasses framing restrictions completely
+document.getElementById('site-frame').src = `${BACKEND_URL}/api/browse-proxy?url=${encodeURIComponent(targetUrl)}`;
 
-// Function to trigger stream resolution when a user selects a video link
+// Listen for clicks on video links inside the proxied page
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'PLAY_VIDEO') {
+        resolveAndPlay(event.data.url);
+    }
+});
+
 function resolveAndPlay(videoUrl) {
     document.getElementById('player-container').style.display = 'flex';
     document.getElementById('back-btn').style.display = 'block';
@@ -97,7 +94,7 @@ function closePlayer() {
     document.getElementById('player-container').style.display = 'none';
     document.getElementById('back-btn').style.display = 'none';
     document.getElementById('loader').style.display = 'block';
-    document.getElementById('loader').innerText = "Resolving secure stream...";
+    document.getElementById('loader').innerText = "Extracting secure stream...";
 }
 </script>
 </body>
