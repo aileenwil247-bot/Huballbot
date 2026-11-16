@@ -3,76 +3,86 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Network Catalog Browser</title>
+<title>Power Browser Workspace</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
-  body, html { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; font-family:sans-serif; }
-  #frame-container { width: 100%; height: 100%; position: relative; }
+  body, html { margin:0; padding:0; width:100%; height:100%; background:#0b0b0e; color:#fff; font-family:sans-serif; overflow:hidden; }
+  
+  /* Browser Chrome (Address bar header) */
+  #browser-chrome { height: 45px; background: #16161d; display: flex; align-items: center; padding: 0 10px; border-bottom: 1px solid #2a2a38; box-sizing: border-box; }
+  #locked-url-bar { flex: 1; background: #0b0b0e; border: 1px solid #33334d; border-radius: 4px; color: #a0a0c0; font-size: 12px; padding: 6px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #lock-icon { margin-right: 8px; font-size: 12px; }
+
+  /* Viewport Container */
+  #viewport { width: 100%; height: calc(100vh - 45px); position: relative; }
   iframe { width: 100%; height: 100%; border: none; background: #000; }
 
-  #player-container { display: none; width: 100%; height: 100%; justify-content: center; align-items: center; position: fixed; top:0; left:0; background:#000; z-index: 9999; }
+  /* IPTV / HLS Video Player Overlay */
+  #player-container { display: none; width: 100%; height: 100%; justify-content: center; align-items: center; position: fixed; top:0; left:0; background:#000; z-index: 99999; }
   video { width: 100%; height: 100%; object-fit: contain; }
   .loader { position: absolute; color: #fff; text-align: center; font-family: sans-serif; font-size: 14px; }
-  #back-btn { display: none; position: fixed; top: 15px; left: 15px; z-index: 10000; background: #e50914; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+  #back-btn { display: none; position: fixed; top: 15px; left: 15px; z-index: 100000; background: #e50914; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
 </style>
 </head>
 <body>
 
-<button id="back-btn" onclick="closePlayer()">⬅ Back to Browse</button>
+<!-- Browser Address Bar (Locked) -->
+<div id="browser-chrome">
+    <div id="locked-url-bar"><span id="lock-icon">🔒</span><span id="current-url-text">Loading secure session...</span></div>
+</div>
 
-<div id="frame-container">
+<!-- Live Web Viewport -->
+<div id="viewport">
     <iframe id="site-frame"></iframe>
 </div>
 
+<!-- IPTV Player Overlay -->
+<button id="back-btn" onclick="closePlayer()">⬅ Back to Catalog</button>
 <div id="player-container">
-    <div id="loader" class="loader">Extracting secure stream...</div>
+    <div id="loader" class="loader">Sniffing and resolving .m3u8 stream...</div>
     <video id="player" controls autoplay playsinline></video>
 </div>
 
 <script>
 let tg = window.Telegram.WebApp; tg.expand();
+
 const urlParams = new URLSearchParams(window.location.search);
 const network = urlParams.get('network') || 'brazzers';
+const targetUrl = urlParams.get('url') || `https://www.${network}.com/videos`;
 
+// Display locked URL in chrome
+document.getElementById('current-url-text').innerText = targetUrl;
+
+// Load target through your backend proxy to bypass iframe headers
 const BACKEND_URL = "https://7265dm.bot-keep.xyz";
-
-const networkUrls = {
-    "brazzers": "https://www.brazzers.com/videos",
-    "mofos": "https://www.mofos.com/videos",
-    "realitykings": "https://www.realitykings.com/videos",
-    "babes": "https://www.babes.com/videos"
-};
-
-const targetUrl = networkUrls[network] || networkUrls["brazzers"];
-
-// Load the homepage through your proxy server so it bypasses framing restrictions completely
 document.getElementById('site-frame').src = `${BACKEND_URL}/api/browse-proxy?url=${encodeURIComponent(targetUrl)}`;
 
-// Listen for clicks on video links inside the proxied page
+// Listen for click messages from the proxied browser page (video selection)
 window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'PLAY_VIDEO') {
-        resolveAndPlay(event.data.url);
+        launchPlayer(event.data.url);
     }
 });
 
-function resolveAndPlay(videoUrl) {
+function launchPlayer(videoPageUrl) {
     document.getElementById('player-container').style.display = 'flex';
     document.getElementById('back-btn').style.display = 'block';
     
-    fetch(`${BACKEND_URL}/api/resolve-direct?url=${encodeURIComponent(videoUrl)}`)
+    // Request backend extractor to grab the .m3u8 stream link
+    fetch(`${BACKEND_URL}/api/resolve-direct?url=${encodeURIComponent(videoPageUrl)}`)
         .then(r => r.json())
         .then(data => {
             if(data.stream_url) {
-                initPlayer(data.stream_url);
+                initHlsPlayer(data.stream_url);
             } else {
-                document.getElementById('loader').innerText = "Stream unavailable.";
+                document.getElementById('loader').innerText = "Stream manifest unavailable.";
             }
         })
-        .catch(() => { document.getElementById('loader').innerText = "Connection error extracting stream."; });
+        .catch(() => { document.getElementById('loader').innerText = "Connection error capturing stream."; });
 }
 
-function initPlayer(streamUrl) {
+function initHlsPlayer(streamUrl) {
     const video = document.getElementById('player');
     const loader = document.getElementById('loader');
     if(Hls.isSupported()) {
@@ -94,7 +104,7 @@ function closePlayer() {
     document.getElementById('player-container').style.display = 'none';
     document.getElementById('back-btn').style.display = 'none';
     document.getElementById('loader').style.display = 'block';
-    document.getElementById('loader').innerText = "Extracting secure stream...";
+    document.getElementById('loader').innerText = "Sniffing and resolving .m3u8 stream...";
 }
 </script>
 </body>
