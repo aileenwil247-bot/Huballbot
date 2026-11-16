@@ -3,27 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Network Stream Browser</title>
+<title>Network Browser & Player</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
-  body, html { margin:0; padding:0; width:100%; height:100%; background:#000; color:#fff; font-family:sans-serif; }
-  #browser-container { padding: 15px; overflow-y: auto; height: 100vh; box-sizing: border-box; }
-  .scene-card { background: #111; margin-bottom: 15px; padding: 12px; border-radius: 8px; cursor: pointer; border: 1px solid #333; display: flex; flex-direction: column; }
-  .scene-thumb { width: 100%; height: 140px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: #222; }
-  .scene-title { font-size: 14px; font-weight: bold; margin-bottom: 4px; color: #fff; }
-  .scene-card small { color: #aaa; }
-  #player-container { display: none; width: 100%; height: 100%; justify-content: center; align-items: center; position: fixed; top:0; left:0; background:#000; }
+  body, html { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; font-family:sans-serif; }
+  
+  /* Full-screen container for the real website view */
+  #browser-frame-container { width: 100%; height: 100%; position: relative; }
+  iframe { width: 100%; height: 100%; border: none; background: #000; }
+
+  /* Overlay Video Player when a scene is tapped */
+  #player-container { display: none; width: 100%; height: 100%; justify-content: center; align-items: center; position: fixed; top:0; left:0; background:#000; z-index: 9999; }
   video { width: 100%; height: 100%; object-fit: contain; }
-  .loader { position: absolute; color: #fff; text-align: center; font-family: sans-serif; }
+  .loader { position: absolute; color: #fff; text-align: center; font-family: sans-serif; font-size: 14px; }
+  
+  /* Floating back button to return to catalog */
+  #back-btn { display: none; position: fixed; top: 15px; left: 15px; z-index: 10000; background: rgba(0,0,0,0.7); color: #fff; border: 1px solid #555; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; }
 </style>
 </head>
 <body>
 
-<!-- Catalog Browser View -->
-<div id="browser-container">
-    <h2 id="network-title">Loading Catalog...</h2>
-    <div id="scenes-list"></div>
+<button id="back-btn" onclick="closePlayer()">⬅ Back to Browse</button>
+
+<!-- Live Website Browser View -->
+<div id="browser-frame-container">
+    <iframe id="site-frame" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
 </div>
 
 <!-- Video Player View -->
@@ -35,51 +40,28 @@
 <script>
 let tg = window.Telegram.WebApp; tg.expand();
 const urlParams = new URLSearchParams(window.location.search);
-const network = urlParams.get('network');
-const token = urlParams.get('token');
+const network = urlParams.get('network') || 'brazzers';
 
 const BACKEND_URL = "https://7265dm.bot-keep.xyz";
 
-if (token) {
-    playVideo(token);
-} else if (network) {
-    document.getElementById('network-title').innerText = `${network.toUpperCase()} Scenes`;
-    loadCatalog(network);
-} else {
-    document.getElementById('browser-container').innerHTML = "<h3>Error: No network selected.</h3>";
-}
+// Map networks to their actual public video homepages
+const networkUrls = {
+    "brazzers": "https://www.brazzers.com/videos",
+    "mofos": "https://www.mofos.com/videos",
+    "realitykings": "https://www.realitykings.com/videos",
+    "babes": "https://www.babes.com/videos"
+};
 
-function loadCatalog(net) {
-    fetch(`${BACKEND_URL}/api/catalog?network=${net}`)
-        .then(res => res.json())
-        .then(data => {
-            const listDiv = document.getElementById('scenes-list');
-            listDiv.innerHTML = "";
-            if (!data.scenes || data.scenes.length === 0) {
-                listDiv.innerHTML = "<p>No scenes found for this network.</p>";
-                return;
-            }
-            data.scenes.forEach(scene => {
-                const card = document.createElement('div');
-                card.className = "scene-card";
-                card.innerHTML = `
-                    <img src="${scene.thumbnail || 'https://via.placeholder.com/300x140?text=No+Thumbnail'}" class="scene-thumb" alt="thumbnail">
-                    <div class="scene-title">${scene.title}</div>
-                    <small>▶ Tap to Stream</small>
-                `;
-                card.onclick = () => resolveAndPlay(scene.url);
-                listDiv.appendChild(card);
-            });
-        })
-        .catch((err) => {
-            console.error(err);
-            document.getElementById('scenes-list').innerHTML = "<p style='color:red;'>Failed to connect to backend server.</p>";
-        });
-}
+const targetSiteUrl = networkUrls[network] || networkUrls["brazzers"];
+const iframe = document.getElementById('site-frame');
 
+// Load the real site directly into the Mini App frame
+iframe.src = targetSiteUrl;
+
+// Function to trigger stream resolution when a user selects a video link
 function resolveAndPlay(videoUrl) {
-    document.getElementById('browser-container').style.display = 'none';
     document.getElementById('player-container').style.display = 'flex';
+    document.getElementById('back-btn').style.display = 'block';
     
     fetch(`${BACKEND_URL}/api/resolve-direct?url=${encodeURIComponent(videoUrl)}`)
         .then(r => r.json())
@@ -106,6 +88,16 @@ function initPlayer(streamUrl) {
         loader.style.display='none';
         video.play();
     }
+}
+
+function closePlayer() {
+    const video = document.getElementById('player');
+    video.pause();
+    video.src = "";
+    document.getElementById('player-container').style.display = 'none';
+    document.getElementById('back-btn').style.display = 'none';
+    document.getElementById('loader').style.display = 'block';
+    document.getElementById('loader').innerText = "Resolving secure stream...";
 }
 </script>
 </body>
