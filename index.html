@@ -37,13 +37,12 @@ const urlParams = new URLSearchParams(window.location.search);
 const network = urlParams.get('network');
 const token = urlParams.get('token');
 
-// Your Botkeep backend URL
-const BACKEND_URL = "https://node13.botkeep.cloud:34325";
+// Your new Botkeep clean HTTPS domain
+const BACKEND_URL = "https://7265dm.bot-keep.xyz";
 
 if (token) {
     playVideo(token);
 } else if (network) {
-    // Fixed typo here: properly closing getElementById
     document.getElementById('network-title').innerText = `${network.toUpperCase()} Scenes`;
     loadCatalog(network);
 } else {
