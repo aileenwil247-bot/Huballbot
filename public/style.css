@@ -1,0 +1,32 @@
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, "Segoe UI", sans-serif; }
+html, body { height: 100%; background: #0f1014; color: #e5e5e5; overflow: hidden; }
+
+.topbar {
+    display: flex; gap: 6px; padding: 8px 10px;
+    background: #17181d; border-bottom: 1px solid #23252c;
+    align-items: center;
+    padding-top: max(8px, env(safe-area-inset-top));
+}
+.nav-btn {
+    background: #23252c; border: none; color: #cfcfcf; font-size: 15px;
+    width: 32px; height: 32px; border-radius: 8px; cursor: pointer;
+    flex-shrink: 0;
+}
+.nav-btn:active { background: #2e3038; }
+#addrBar {
+    flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid #2b2e36;
+    background: #1e2027; color: #f0f0f0; outline: none; font-size: 13px;
+    min-width: 0;
+}
+#addrBar:focus { border-color: #4a7dff; }
+#goBtn {
+    padding: 0 14px; height: 32px; border-radius: 8px; border: none; cursor: pointer;
+    background: #4a7dff; color: #fff; font-weight: 600; font-size: 13px;
+    flex-shrink: 0;
+}
+#view {
+    width: 100%;
+    height: calc(100vh - 49px - env(safe-area-inset-top));
+    border: none; background: #fff;
+    display: block;
+}
