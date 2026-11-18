@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>OmniWeb</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar">
+    <button class="nav-btn" id="backBtn">←</button>
+    <button class="nav-btn" id="reloadBtn">⟳</button>
+    <input id="addrBar" type="text" placeholder="URL or search…" autocomplete="off" spellcheck="false">
+    <button id="goBtn">Go</button>
+</div>
+<iframe id="view" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-presentation"></iframe>
+<script src="app.js"></script>
+</body>
+</html>
